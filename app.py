@@ -1,58 +1,46 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 import pickle
 import numpy as np
+import os
 
-# Initialize Flask App
-app = Flask(__name__)
+# Adjust static_folder to match build location
+app = Flask(__name__, static_folder="build", static_url_path="")
 
 # Load ML Models
-with open("framingham.pkl", "rb") as f:
-    heart_model = pickle.load(f)
+models = {
+    "heart": pickle.load(open("framingham.pkl", "rb")),
+    "diabetes": pickle.load(open("diabetes.pkl", "rb")),
+    "liver": pickle.load(open("liver.pkl", "rb")),
+}
 
-with open("diabetes.pkl", "rb") as f:
-    diabetes_model = pickle.load(f)
+# Serve React Frontend
+@app.route("/")
+def serve_react():
+    return send_from_directory("build", "index.html")
 
-with open("liver.pkl", "rb") as f:
-    liver_model = pickle.load(f)
+@app.route("/<path:path>")
+def serve_static_files(path):
+    return send_from_directory("build", path)
 
-# Homepage Route
-@app.route('/')
-def home():
-    return "Welcome to the Medical Diagnosis API! The backend is running successfully."
+# API Endpoint for Predictions
+@app.route("/predict_<disease>", methods=["POST"])
+def predict(disease):
+    try:
+        data = request.json
+        features = [float(value) for value in data["features"]]
 
-# Heart Disease Prediction Endpoint
-@app.route('/predict_heart', methods=['POST'])
-def predict_heart():
-    data = request.json
-    features = np.array([data['features']]).reshape(1, -1)
-    prediction = heart_model.predict(features)[0]
-    return jsonify({"prediction": int(prediction)})
+        model = models.get(disease)
+        if not model:
+            return jsonify({"error": "Invalid disease type"}), 400
 
-# Diabetes Prediction Endpoint
-@app.route('/predict_diabetes', methods=['POST'])
-def predict_diabetes():
-    data = request.json
-    features = np.array([data['features']]).reshape(1, -1)
-    prediction = diabetes_model.predict(features)[0]
-    return jsonify({"prediction": int(prediction)})
+        prediction = model.predict(np.array([features]))[0]
+        return jsonify({"prediction": int(prediction)})
 
-# Liver Disease Prediction Endpoint
-@app.route('/predict_liver', methods=['POST'])
-def predict_liver():
-    data = request.json
-    features = np.array([data['features']]).reshape(1, -1)
-    prediction = liver_model.predict(features)[0]
-    return jsonify({"prediction": int(prediction)})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
-# Run the App
-if __name__ == '__main__':
+if __name__ == "__main__":
     app.run(debug=True)
-
-
-
-
-
-
 
 
 
