@@ -3,7 +3,6 @@ import pickle
 import numpy as np
 import os
 
-# Adjust static_folder to match build location
 app = Flask(__name__, static_folder="build", static_url_path="")
 
 # Load ML Models
@@ -40,8 +39,8 @@ def predict(disease):
         return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
-    app.run(debug=True)
-
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=True)
 
 
 
